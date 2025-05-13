@@ -1,0 +1,230 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script>```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusTube</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'nexus-dark': '#0d0d1a',
+            'nexus-purple': '#a64eff',
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="bg-nexus-dark text-white">
+  <div id="root"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+
+  <script type="text/babel">
+    // Placeholder SVG for icons (galaxy, bell, etc.)
+    const GalaxyIcon = () => (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2a10 10 0 00-3 19.5 10 10 0 0015-9 10 10 0 00-12-10.5z" />
+      </svg>
+    );
+
+    const BellIcon = () => (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    );
+
+    const UploadIcon = () => (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+      </svg>
+    );
+
+    // Navbar Component
+    const Navbar = () => (
+      <nav className="fixed top-0 w-full bg-nexus-dark flex items-center justify-between p-4 border-b border-gray-800 z-10">
+        <div className="flex items-center space-x-2">
+          <GalaxyIcon />
+          <span className="text-xl font-bold">NexusTube</span>
+        </div>
+        <div className="flex-1 max-w-xl mx-4">
+          <div className="flex items-center bg-gray-800 rounded-full px-4 py-2">
+            <input type="text" placeholder="Search" className="bg-transparent w-full outline-none text-white" disabled />
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+        <div className="flex items-center space-x-4">
+          <UploadIcon className="hover:text-nexus-purple cursor-pointer" />
+          <BellIcon className="hover:text-nexus-purple cursor-pointer" />
+          <div className="w-8 h-8 bg-gray-600 rounded-full"></div>
+        </div>
+      </nav>
+    );
+
+    // Sidebar Component
+    const Sidebar = () => (
+      <aside className="fixed top-16 left-0 h-full w-60 bg-nexus-dark border-r border-gray-800 p-4 hidden md:block">
+        <ul className="space-y-4">
+          {['Home', 'Trends', 'Subscriptions', 'Library', 'History', 'Your Videos', 'Settings'].map((item) => (
+            <li key={item} className="flex items-center space-x-2 hover:text-nexus-purple cursor-pointer">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
+              </svg>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    );
+
+    // Video Card Component
+    const VideoCard = ({ title = "Sample Video", channel = "NexusTube Channel", views = "1.2M views", time = "2 days ago" }) => (
+      <div className="space-y-2 hover:scale-105 transition-transform">
+        <div className="w-full h-40 bg-gray-700 rounded-lg"></div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-xs text-gray-400">{channel}</p>
+        <p className="text-xs text-gray-400">{views} • {time}</p>
+      </div>
+    );
+
+    // Homepage Component
+    const Homepage = () => (
+      <div className="pt-20 md:pl-64 p-4">
+        <div className="mb-8">
+          <div className="w-full h-96 bg-gray-700 rounded-lg mb-4"></div>
+          <h2 className="text-xl font-bold">Highlight Video Title</h2>
+          <p className="text-sm text-gray-400">NexusTube Channel • 2.5M views • 1 week ago</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array(8).fill().map((_, i) => (
+            <VideoCard key={i} />
+          ))}
+        </div>
+      </div>
+    );
+
+    // Video Page Component
+    const VideoPage = () => (
+      <div className="pt-20 md:pl-64 p-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="w-full h-96 bg-black rounded-lg mb-4"></div>
+          <h1 className="text-2xl font-bold">Sample Video Title</h1>
+          <div className="flex items-center justify-between my-2">
+            <div className="flex items-center space-x-2">
+              <div className="w-10 h-10 bg-gray-600 rounded-full"></div>
+              <div>
+                <p className="font-semibold">NexusTube Channel</p>
+                <p className="text-xs text-gray-400">100K subscribers</p>
+              </div>
+            </div>
+            <button className="bg-red-600 text-white px-4 py-2 rounded-full hover:bg-nexus-purple">Subscribe</button>
+          </div>
+          <p className="text-sm text-gray-400">1.2M views • 2 days ago</p>
+          <div className="bg-gray-800 p-4 rounded-lg my-4">
+            <p className="text-sm">Video description goes here. Lorem ipsum dolor sit amet...</p>
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Comments</h2>
+            <input type="text" placeholder="Add a comment..." className="w-full bg-gray-800 p-2 rounded-lg" disabled />
+            <div className="space-y-2">
+              <p className="text-sm"><span className="font-semibold">User1:</span> Great video!</p>
+              <p className="text-sm"><span className="font-semibold">User2:</span> Love the content!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Channel Page Component
+    const ChannelPage = () => (
+      <div className="pt-20 md:pl-64 p-4">
+        <div className="w-full h-40 bg-gradient-to-r from-purple-900 to-blue-900 mb-4"></div>
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="w-20 h-20 bg-gray-600 rounded-full"></div>
+            <div>
+              <h1 className="text-2xl font-bold">NexusTube Channel</h1>
+              <p className="text-sm text-gray-400">@NexusTube • 100K subscribers</p>
+            </div>
+            <button className="bg-red-600 text-white px-4 py-2 rounded-full hover:bg-nexus-purple">Subscribe</button>
+          </div>
+          <div className="flex space-x-4 border-b border-gray-800 mb-4">
+            <button className="pb-2 border-b-2 border-nexus-purple">Videos</button>
+            <button className="pb-2 text-gray-400">Start</button>
+            <button className="pb-2 text-gray-400">About</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array(6).fill().map((_, i) => (
+              <VideoCard key={i} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    // Main App Component
+    const App = () => (
+      <div>
+        <Navbar />
+        <Sidebar />
+        <Homepage />
+        {/* Uncomment to test other pages */}
+        {/* <VideoPage /> */}
+        {/* <ChannelPage /> */}
+      </div>
+    );
+
+    // Render App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
+```
